@@ -1,0 +1,9 @@
+# VSCode
+.vscode/
+
+# Windows meta files
+Thumbs.db
+
+# macOS meta files
+.DS_Store
+._.*
