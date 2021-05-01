@@ -1,12 +1,12 @@
-# Utility for unpacking archive.
+# Utility for unpacking DAT archive of NieR: Automata.
 # Copyright (C) 2021 EMAX Studio, all rights reserved.
 
 import os
 import sys
 import struct
 
+""" DAT archive. """
 class DATArchive:
-	""" """
 	class FileInfo:
 		def __init__(self):
 			self.offset = 0
@@ -30,12 +30,6 @@ class DATArchive:
 			return True
 		else:
 			return False
-
-	def _ReadFloat(self):
-		return struct.unpack('<f', self.fileObject.read(4))[0]
-
-	def _ReadInt(self):
-		return struct.unpack('<i', self.fileObject.read(4))[0]
 
 	def ParseHeader(self):
 		if self.fileObject.read(4) == b'DAT\x00':
@@ -107,6 +101,13 @@ Extension: %s
 		for index in range(0, self.fileCount):
 			self.PrintFileInfo(index)
 
+	def _ReadFloat(self):
+		return struct.unpack('<f', self.fileObject.read(4))[0]
+
+	def _ReadInt(self):
+		return struct.unpack('<i', self.fileObject.read(4))[0]
+
+""" Holds a file in DAT archive. """
 class DATFile:
 	def __init__(self, archive):
 		pass
