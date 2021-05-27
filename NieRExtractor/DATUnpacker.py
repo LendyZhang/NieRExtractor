@@ -5,14 +5,10 @@ import os
 import sys
 import struct
 
-""" DAT archive. """
 class DATArchive:
-	class FileInfo:
-		def __init__(self):
-			self.offset = 0
-			self.ext = ''
-			self.name = ''
-			self.size = 0
+	r""" DAT archive is the basic unit of virtual file system in NieR: Automata.
+	It contains the file allocation table and the contents of a group of files.
+	"""
 
 	def __init__(self):
 		self.fileObject = None
@@ -22,6 +18,13 @@ class DATArchive:
 		self.nameTableOffset = 0
 		self.sizeTableOffset = 0
 		self.fileInfos = []
+
+	class FileInfo:
+		def __init__(self):
+			self.offset = 0
+			self.ext = ''
+			self.name = ''
+			self.size = 0
 
 	def Open(self, filePath):
 		self.fileObject = open(filePath, 'rb')
