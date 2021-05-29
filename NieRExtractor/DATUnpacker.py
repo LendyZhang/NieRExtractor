@@ -6,8 +6,9 @@ import sys
 import struct
 
 class DATArchive:
-	r""" DAT archive is the basic unit of virtual file system in NieR: Automata.
+	r""" DAT archive is the basic unit of the virtual file system in NieR: Automata.
 	It contains the file allocation table and the contents of a group of files.
+	This utility can be used to query information of the DAT archive, and extract files from it.
 	"""
 
 	def __init__(self):
@@ -28,13 +29,13 @@ class DATArchive:
 
 	def Open(self, filePath):
 		self.fileObject = open(filePath, 'rb')
-		if self.ParseHeader():
-			self.ParseFileInfos()
+		if self._ParseHeader():
+			self._ParseFileTable()
 			return True
 		else:
 			return False
 
-	def ParseHeader(self):
+	def _ParseHeader(self):
 		if self.fileObject.read(4) == b'DAT\x00':
 			self.fileCount = self._ReadInt()
 			self.fileTableOffset = self._ReadInt()
@@ -49,7 +50,7 @@ class DATArchive:
 			print('Incorrect archive format.')
 			return False
 
-	def ParseFileInfos(self):
+	def _ParseFileTable(self):
 		self.fileObject.seek(self.fileTableOffset)
 		for index in range(0, self.fileCount):
 			fi = self.FileInfo()
@@ -110,10 +111,16 @@ Extension: %s
 	def _ReadInt(self):
 		return struct.unpack('<i', self.fileObject.read(4))[0]
 
-""" Holds a file in DAT archive. """
 class DATFile:
+	r""" Describes a file in DAT archive.
+	"""
+
 	def __init__(self, archive):
-		pass
+		self.archive = archive
+		self.offset = 0
+		self.ext = ''
+		self.name = ''
+		self.size = 0
 
 """
 def extract_file(fp, filename, FileOffset, Size, extract_dir):
