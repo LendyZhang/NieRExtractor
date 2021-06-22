@@ -18,14 +18,7 @@ class DATArchive:
 		self.extTableOffset = 0
 		self.nameTableOffset = 0
 		self.sizeTableOffset = 0
-		self.fileInfos = []
-
-	class FileInfo:
-		def __init__(self):
-			self.offset = 0
-			self.ext = ''
-			self.name = ''
-			self.size = 0
+		self.files = []
 
 	def Open(self, filePath):
 		self.fileObject = open(filePath, 'rb')
@@ -53,17 +46,17 @@ class DATArchive:
 	def _ParseFileTable(self):
 		self.fileObject.seek(self.fileTableOffset)
 		for index in range(0, self.fileCount):
-			fi = self.FileInfo()
-			fi.offset = self._ReadInt()
-			self.fileInfos.append(fi)
+			datFile = DATFile(self)
+			datFile.offset = self._ReadInt()
+			self.files.append(datFile)
 
 		self.fileObject.seek(self.extTableOffset)
 		for index in range(0, self.fileCount):
-			self.fileInfos[index].ext = self.fileObject.read(4).decode('ascii')
+			self.files[index].ext = self.fileObject.read(4).decode('ascii').rstrip('\x00')
 
 		self.fileObject.seek(self.sizeTableOffset)
 		for index in range(0, self.fileCount):
-			self.fileInfos[index].size = self._ReadInt()
+			self.files[index].size = self._ReadInt()
 
 		self.fileObject.seek(self.nameTableOffset)
 		nameAlignment = self._ReadInt()
@@ -71,39 +64,36 @@ class DATArchive:
 			name = ''
 			while True:
 				partialName = self.fileObject.read(nameAlignment)
-				name += partialName.decode('ascii')
+				name += partialName.decode('ascii').rstrip('\x00')
 				if partialName[-1] == 0:
 					break
-			self.fileInfos[index].name = name
+			self.files[index].name = name
 
 	def GetFileCount(self):
 		return self.fileCount
 
 	def PrintArchiveInfo(self):
-		print(
-'''FileCount: %08x
-FileTableOffset: %08x
-ExtTableOffset:%08x
-NameTableOffset:%08x
-SizeTableOffset:%08x
-'''%
-			(self.fileCount, self.fileTableOffset, self.extTableOffset, self.nameTableOffset, self.sizeTableOffset)
-		)
+		print('FileCount: %d' % self.fileCount)
+		print('FileTableOffset: %08x' % self.fileTableOffset)
+		print('ExtTableOffset: %08x' % self.extTableOffset)
+		print('NameTableOffset: %08x' % self.nameTableOffset)
+		print('SizeTableOffset: %08x' % self.sizeTableOffset)
 
 	def PrintFileInfo(self, index):
-		print(
-'''FileIndex: %d
-FileName: %s
-FileOffset: %08x
-Size: %08x
-Extension: %s
-'''%
-			(index, self.fileInfos[index].name, self.fileInfos[index].offset, self.fileInfos[index].size, self.fileInfos[index].ext)
-		)
+		print('FileIndex: %d' % index)
+		print('FileName: %s' % self.files[index].name)
+		print('FileOffset: %08x' % self.files[index].offset)
+		print('FileSize: %08x' % self.files[index].size)
+		print('FileExt: %s' % self.files[index].ext)
 
 	def PrintFileInfos(self):
 		for index in range(0, self.fileCount):
 			self.PrintFileInfo(index)
+
+	def Extract(self, targetDir, unpackWTP=True):
+		print('Extracting all files to %s...' % targetDir)
+		for index in range(0, self.fileCount):
+			self.files[index].Extract(targetDir, unpackWTP)
 
 	def _ReadFloat(self):
 		return struct.unpack('<f', self.fileObject.read(4))[0]
@@ -122,75 +112,48 @@ class DATFile:
 		self.name = ''
 		self.size = 0
 
-"""
-def extract_file(fp, filename, FileOffset, Size, extract_dir):
-	create_dir(extract_dir)
-	fp.seek(FileOffset)
-	FileContent = fp.read(Size)
-	outfile = open(extract_dir + '/'+filename,'wb')
-	print("extracting file %s to %s/%s"%(filename,extract_dir,filename))
-	outfile.write(FileContent)
-	outfile.close()
-	if filename.find('wtp') > -1 :
-		wtp_fp = open(extract_dir + '/'+filename,"rb")
-		content = wtp_fp.read(Size)
-		dds_group = content.split(b'DDS ')
-		dds_group = dds_group[1:]
-		for i in range(len(dds_group)):
-			print("unpacking %s to %s/%s"%(filename,extract_dir ,filename.replace('.wtp','_%d.dds'%i)))
-			dds_fp = open(extract_dir + '/'+filename.replace('.wtp','_%d.dds'%i), "wb")
-			dds_fp.write(b'DDS ')
-			dds_fp.write(dds_group[i])
-			dds_fp.close()
-		wtp_fp.close()
-		#os.remove("%s/%s"%(extract_dir,filename))
-	print("done")
+	def Extract(self, targetDir, unpackWTP=True):
+		if not os.path.exists(targetDir):
+			os.makedirs(targetDir)
 
-def get_all_files(path):
-	pass
+		fileObject = self.archive.fileObject
+		fileObject.seek(self.offset)
+		content = fileObject.read(self.size)
 
-def main(filename, extract_dir, ROOT_DIR):
-	fp = open(filename,"rb")
-	headers = read_header(fp)
-	if headers:
-		FileCount, FileTableOffset, ExtensionTableOffset,NameTableOffset,SizeTableOffset,UnknownOffset1C,Unknown20 = headers
-		for i in range(FileCount):
-			extract_dir_sub = ''
-			index,Filename,FileOffset,Size,Extension = get_fileinfo(fp, i, FileTableOffset,ExtensionTableOffset, NameTableOffset,SizeTableOffset)
-			if extract_dir != '':
-				extract_dir_sub = extract_dir + '\\' + filename.replace(ROOT_DIR ,'') 
-				extract_file(fp, Filename, FileOffset, Size, extract_dir_sub)
+		print('Extracting %s...' % self.name, end='')
+		fo = open(targetDir + '/' + self.name, 'wb')
+		fo.write(content)
+		fo.close()
+		print('Done')
 
+		if unpackWTP and self.ext == 'wtp':
+			index = 0
+			prevOffset = 0
+			while True:
+				print('Unpacking DDS file %d from %s...' % (index, self.name), end='')
+				offset = content.find(b'DDS ', prevOffset + 4)
+				fo = open(targetDir + '/' + self.name.replace('.wtp', '_%d.dds' % index), 'wb')
+				fo.write(content[prevOffset:] if offset == -1 else content[prevOffset:offset])
+				fo.close()
+				print('Done')
+
+				if offset == -1:
+					break
+				else:
+					index += 1
+					prevOffset = offset
 
 if __name__ == '__main__':
-	extract_dir = ''
-	dirname = ''
-	useage = "\nUseage:\npython dat_unpacker.py your_dat_path your_extract_path"
-	useage1 = "\nUseage:\nblender --background --python dat_unpacker.py your_dat_path your_extract_path"
-	if len(sys.argv) < 3:
-		print(useage)
-		exit()
 	if len(sys.argv) > 2:
-		dir_name = sys.argv[1]
-		extract_dir = sys.argv[2]
-		print()
-		if os.path.split(sys.argv[0])[-1].lower().find("blender") >-1:
-			if len(sys.argv) < 6:
-				print(useage1)
-				exit()
-			dir_name = sys.argv[4]
-			extract_dir = sys.argv[5]
-		if not os.path.exists(extract_dir):
-			create_dir(extract_dir)
-	ROOT_DIR = dir_name
-	for dirpath,dirnames,filename in os.walk(dir_name):
-		for file in filename:
-			filename = "%s\%s"%(dirpath,file)
-			main(filename, extract_dir, ROOT_DIR)
-"""
+		ar = DATArchive()
+		ar.Open(sys.argv[2])
 
-if __name__ == '__main__':
-	ar = DATArchive()
-	ar.Open(sys.argv[1])
-	ar.PrintArchiveInfo()
-	ar.PrintFileInfos()
+		if sys.argv[1].casefold() == 'info':
+			ar.PrintArchiveInfo()
+			ar.PrintFileInfos()
+
+		elif sys.argv[1].casefold() == 'extract':
+			targetDir = '.'
+			if len(sys.argv) > 3:
+				targetDir = sys.argv[3]
+			ar.Extract(targetDir)
