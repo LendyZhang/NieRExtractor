@@ -1,4 +1,5 @@
 # Utility for unpacking DAT archive of NieR: Automata.
+# Author: Lendy Zhang <lendyzhang@gmail.com>
 # Copyright (C) 2021 EMAX Studio, all rights reserved.
 
 import os
@@ -143,7 +144,7 @@ class DATFile:
 					index += 1
 					prevOffset = offset
 
-if __name__ == '__main__':
+def main():
 	if len(sys.argv) > 2:
 		ar = DATArchive()
 		ar.Open(sys.argv[2])
@@ -151,9 +152,25 @@ if __name__ == '__main__':
 		if sys.argv[1].casefold() == 'info':
 			ar.PrintArchiveInfo()
 			ar.PrintFileInfos()
+			return
 
 		elif sys.argv[1].casefold() == 'extract':
 			targetDir = '.'
 			if len(sys.argv) > 3:
 				targetDir = sys.argv[3]
 			ar.Extract(targetDir)
+			return
+
+	print('Utility for unpacking DAT archive of NieR: Automata.')
+	print('')
+	print('Usage: python3 DATUnpacker.py COMMAND [ARGUMENTS]')
+	print('')
+	print('Commands:')
+	print('    info    Prints information of the specified archive.')
+	print('            Example: python3 DATUnpacker.py info pl0000.dat')
+	print('')
+	print('    extract Extracts files in the specified archive to the specified directory.')
+	print('            Example: python3 DATUnpacker.py extract pl0000.dat ./output')
+
+if __name__ == '__main__':
+	main()
