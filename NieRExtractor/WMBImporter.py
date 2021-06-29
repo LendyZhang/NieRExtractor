@@ -31,10 +31,10 @@ class Mesh:
 	"""
 
 	def __init__(self):
-		self.version = 0
-		self.flags = 0
 		self.boundingBox = Utility.AABB3()
-		self.skeleton = WMBSkeleton()
+		self.skeleton = Skeleton()
+		self.subMeshCount = 0
+		self.subMeshes = []
 
 	def Import(self, fileObject):
 		pass
